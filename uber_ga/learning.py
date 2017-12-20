@@ -54,14 +54,14 @@ class LearningSession:
                                for genome, rew in batch], reverse=True)]
         self.parents = sub_results[:truncation]
 
-    def make_offspring(self, population=5000):
+    def make_offspring(self, population=5000, stddev=0.005):
         """
         Produce a set of offspring from self.parents.
         """
         res = [self.parents[0]]
         for seed in noise_seeds(population - 1):
             parent = self._random.choice(self.parents)
-            res.append(res, parent + (seed,))
+            res.append(res, parent + ((seed, stddev),))
         return res
 
     def _evaluate(self, env, trials):
