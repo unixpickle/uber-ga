@@ -14,5 +14,5 @@ setup(
     author_email='unixpickle@gmail.com',
     license='MIT',
     packages=['uber_ga'],
-    install_requires=['anyrl>=0.10.4<0.12.0', 'mpi4py>=2.0.0,<4.0.0']
+    install_requires=['anyrl>=0.10.4<0.12.0', 'mpi4py>=2.0.0,<4.0.0', 'cloudpickle>=0.4.0']
 )
