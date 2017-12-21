@@ -157,4 +157,7 @@ class CNN(FeedforwardPolicy):
             cnn_3 = tf.layers.conv2d(cnn_2, 64, 3, 1, **conv_kwargs)
         flat_size = np.prod(cnn_3.get_shape()[1:])
         flat_in = tf.reshape(cnn_3, (tf.shape(cnn_3)[0], int(flat_size)))
-        return tf.layers.dense(flat_in, out_size, kernel_initializer=tf.zeros_initializer())
+        with tf.variable_scope('hidden'):
+            hidden = tf.layers.dense(flat_in, 512, **conv_kwargs)
+        with tf.variable_scope('output'):
+            return tf.layers.dense(hidden, out_size, kernel_initializer=tf.zeros_initializer())
