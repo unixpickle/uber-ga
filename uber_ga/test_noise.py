@@ -37,9 +37,43 @@ def test_noise_cumulative():
     assert np.allclose(actual, actual1)
     assert np.allclose(actual, expected)
 
-def test_noise_performance(benchmark):
+def test_noise_block_perf(benchmark):
     """
-    Benchmark noise generation.
+    Benchmark raw noise generation.
     """
     source = NoiseSource()
     benchmark(partial(source.block, 1000000, 123))
+
+CACHE_TEST_GENOMES = [[],
+                      [(1337, 0.5)],
+                      [(123, 0.3)],
+                      [(1337, 0.5), (555, 0.5)],
+                      [(123, 0.3), (444, 1)],
+                      [(1337, 0.5), (555, 0.5), (333, 0.2)],
+                      [(123, 0.3), (444, 1), (777, 0.8)],
+                      [(1337, 0.5), (555, 0.5), (333, 0.2), (912, 0.5)],
+                      [(123, 0.3), (444, 1), (777, 0.8), (873, 1)],
+                      [(123, 0.3), (444, 1), (777, 0.8), (873, 1), (9823, 1)],
+                      [(123, 0.3), (444, 1), (777, 0.8), (873, 1), (9823, 1), (1231, 0.05)]]
+
+def test_noise_cache_perf(benchmark):
+    """
+    Benchmark successive mutation generation.
+    """
+    source = NoiseSource()
+    def run_ancestors(): # pylint: disable=C0111
+        source._cache.clear() # pylint: disable=W0212
+        for genome in CACHE_TEST_GENOMES:
+            source.cumulative_block(1000000, genome)
+    benchmark(run_ancestors)
+
+def test_noise_nocache_perf(benchmark):
+    """
+    Same as test_noise_cache_perf(), but with no caching.
+    """
+    source = NoiseSource(max_cache=1)
+    def run_ancestors(): # pylint: disable=C0111
+        source._cache.clear() # pylint: disable=W0212
+        for genome in CACHE_TEST_GENOMES:
+            source.cumulative_block(1000000, genome)
+    benchmark(run_ancestors)
