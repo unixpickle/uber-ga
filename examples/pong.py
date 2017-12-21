@@ -10,6 +10,7 @@ Ideally, you will run this on a fairly large MPI cluster.
 
 from anyrl.envs.wrappers import DownsampleEnv, GrayscaleEnv, FrameStackEnv
 import gym
+from mpi4py import MPI
 import tensorflow as tf
 from uber_ga import LearningSession, nature_cnn
 
@@ -28,7 +29,8 @@ def main():
                 offspring = learn_sess.make_offspring()
                 pop = learn_sess.generation(offspring, env)
                 rewards = [x[0] for x in pop]
-                print('mean=%f best=%s' % (sum(rewards)/len(rewards), str(rewards[:10])))
+                if MPI.COMM_WORLD.Get_rank() == 0: # pylint: disable=E1101
+                    print('mean=%f best=%s' % (sum(rewards)/len(rewards), str(rewards[:10])))
         finally:
             env.close()
 
