@@ -39,8 +39,8 @@ class FeedforwardPolicy(Model):
         self.action_dist = action_dist
         self.obs_vectorizer = obs_vectorizer
         self.stochastic = stochastic
-        self.obs_ph = tf.placeholder(tf.float32, shape=obs_vectorizer.out_shape)
-        output = self.base(int(np.prod(x.value for x in action_dist.param_shape)))
+        self.obs_ph = tf.placeholder(tf.float32, shape=(None,) + obs_vectorizer.out_shape)
+        output = self.base(int(np.prod(action_dist.param_shape)))
         self.output = tf.reshape(output, (-1,) + action_dist.param_shape)
 
     @property
@@ -104,9 +104,9 @@ class MLP(FeedforwardPolicy):
         super(MLP, self).__init__(session, action_dist, obs_vectorizer, stochastic)
 
     def base(self, out_size):
-        in_size = int(np.prod(x.value for x in self.obs_ph.get_shape()[1:]))
+        in_size = int(np.prod(self.obs_vectorizer.out_shape))
         layer_in = tf.reshape(self.obs_ph, (-1, in_size))
-        for size in enumerate(self.layer_sizes):
+        for size in self.layer_sizes:
             layer_in = tf.layers.dense(layer_in, size,
                                        kernel_initializer=tf.truncated_normal_initializer())
             layer_in = self.activation(tf.contrib.layers.layer_norm(layer_in))

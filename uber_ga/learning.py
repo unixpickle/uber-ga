@@ -25,6 +25,16 @@ class LearningSession:
         self._random = random.Random(x=MPI.COMM_WORLD.bcast(random.randint(0, 2**32 - 1)))
         _synchronize_variables(sess, variables)
 
+    def make_offspring(self, population=5000, stddev=0.1):
+        """
+        Produce a set of offspring from self.parents.
+        """
+        res = [self.parents[0]]
+        for seed in noise_seeds(population - 1):
+            parent = self._random.choice(self.parents)
+            res.append(parent + ((seed, stddev),))
+        return res
+
     def generation(self, offspring, env, trials=1, truncation=10):
         """
         Run a generation of the algorithm and update
@@ -39,40 +49,28 @@ class LearningSession:
           trials: the number of episodes to run.
           truncation: the number of parents to keep.
 
-        This uses self.parents to generate offspring for
-        the next generation. The first parent is assumed
-        to be the elite, and is definitely chosen at least
-        one time to be a parent with no extra mutation.
+        Returns a sorted list of (rew, genome) tuples.
+        Updates self.parents to reflect the elite.
         """
         res = {}
         for i in range(MPI.COMM_WORLD.Get_rank(), len(offspring), MPI.COMM_WORLD.Get_size()):
             with self._noise_adder.seed(offspring[i]):
                 res[offspring[i]] = self._evaluate(env, trials)
-        sub_results = [x[1] for x in
-                       sorted([(rew, genome)
-                               for batch in MPI.COMM_WORLD.allgather(res)
-                               for genome, rew in batch], reverse=True)]
-        self.parents = sub_results[:truncation]
-
-    def make_offspring(self, population=5000, stddev=0.1):
-        """
-        Produce a set of offspring from self.parents.
-        """
-        res = [self.parents[0]]
-        for seed in noise_seeds(population - 1):
-            parent = self._random.choice(self.parents)
-            res.append(res, parent + ((seed, stddev),))
-        return res
+        sorted_results = sorted([(rew, genome)
+                                 for batch in MPI.COMM_WORLD.allgather(res)
+                                 for genome, rew in batch.items()], reverse=True)
+        self.parents = [x[1] for x in sorted_results][:truncation]
+        return sorted_results
 
     def _evaluate(self, env, trials):
         rewards = []
         for _ in range(trials):
             done = False
             total_rew = 0.0
-            state = self._model.start_state(1)
+            state = self.model.start_state(1)
             obs = env.reset()
             while not done:
-                out = self._model.step([obs], state)
+                out = self.model.step([obs], state)
                 state = out['states']
                 obs, rew, done, _ = env.step(out['actions'][0])
                 total_rew += rew

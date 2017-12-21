@@ -77,7 +77,7 @@ class NoiseAdder:
         return self
 
     def __enter__(self):
-        size = int(np.sum(np.prod(x.value for x in v.get_shape()) for v in self._variables))
+        size = int(np.sum(np.prod([x.value for x in v.get_shape()]) for v in self._variables))
         noise = self._noise.cumulative_block(size, self._seeds)
         self._old_vals = self._sess.run(self._variables)
         new_vals = []
