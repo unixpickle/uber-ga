@@ -26,8 +26,7 @@ def main():
             sess.run(tf.global_variables_initializer())
             learn_sess = LearningSession(sess, model)
             while True:
-                offspring = learn_sess.make_offspring(population=POPULATION)
-                pop = learn_sess.generation(offspring, env, trials=5)
+                pop = learn_sess.generation(env, trials=5, population=POPULATION)
                 rewards = [x[0] for x in pop]
                 print('mean=%f best=%s' % (sum(rewards)/len(rewards), str(rewards[:10])))
         finally:

@@ -10,32 +10,52 @@ import random
 from mpi4py import MPI
 import tensorflow as tf
 
-from .noise import NoiseSource, NoiseAdder, noise_seeds
+from .noise import NoiseSource, NoiseAdder, noise_seed
 
 class LearningSession:
     """
     A GA optimization session.
     """
-    def __init__(self, sess, model, variables=None, noise=None):
-        variables = (variables or tf.trainable_variables())
-        noise = (noise or NoiseSource())
+    def __init__(self, session, model, variables=None, noise=None):
+        self.session = session
         self.model = model
+        self.variables = (variables or tf.trainable_variables())
+        self.noise = (noise or NoiseSource())
         self.parents = [()]
-        self._noise_adder = NoiseAdder(sess, variables, noise)
-        self._random = random.Random(x=MPI.COMM_WORLD.bcast(random.randint(0, 2**32 - 1)))
-        _synchronize_variables(sess, variables)
+        self._noise_adder = NoiseAdder(self.session, self.variables, self.noise)
+        _synchronize_variables(self.session, self.variables)
 
-    def make_offspring(self, population=5000, stddev=0.1):
+    def export_state(self):
         """
-        Produce a set of offspring from self.parents.
-        """
-        res = [self.parents[0]]
-        for seed in noise_seeds(population - 1):
-            parent = self._random.choice(self.parents)
-            res.append(parent + ((seed, stddev),))
-        return res
+        Export the state of the learning session to a
+        picklable object.
 
-    def generation(self, offspring, env, trials=1, truncation=10):
+        This does not include the TensorFlow graph itself,
+        but it does include the initialization.
+        """
+        return {
+            'variables': self.session.run(self.variables),
+            'parents': self.parents,
+            'noise': self.noise
+        }
+
+    def import_state(self, state):
+        """
+        Import a state exported by export_state().
+
+        This assumes that the LearningSession has already
+        been setup with a suitable TensorFlow graph.
+
+        This may add nodes (e.g. assigns) to the graph, so
+        it should not be called often.
+        """
+        for var, val in zip(self.variables, state['variables']):
+            self.session.run(tf.assign(var, val))
+        self.parents = state['parents']
+        self._noise_adder.noise = state['noise']
+
+    # pylint: disable=R0913
+    def generation(self, env, trials=1, truncation=10, population=5000, stddev=0.1):
         """
         Run a generation of the algorithm and update
         self.parents for the new generation.
@@ -43,39 +63,53 @@ class LearningSession:
         Call this from each MPI worker.
 
         Args:
-          offspring: the genomes (tuples of seeds) to try
-            on the environment.
           env: the gym.Env to use to evaluate the model.
           trials: the number of episodes to run.
           truncation: the number of parents to keep.
+          population: the number of genomes to try.
+          stddev: mutation standard deviation.
 
         Returns a sorted list of (rew, genome) tuples.
         Updates self.parents to reflect the elite.
         """
-        res = {}
-        for i in range(MPI.COMM_WORLD.Get_rank(), len(offspring), MPI.COMM_WORLD.Get_size()):
-            with self._noise_adder.seed(offspring[i]):
-                res[offspring[i]] = self._evaluate(env, trials)
-        sorted_results = sorted([(rew, genome)
-                                 for batch in MPI.COMM_WORLD.allgather(res)
-                                 for genome, rew in batch.items()], reverse=True)
+        res = []
+        for i in range(MPI.COMM_WORLD.Get_rank(), population, MPI.COMM_WORLD.Get_size()):
+            if i == 0:
+                mutations = self.parents[0]
+            else:
+                mutations = random.choice(self.parents) + ((noise_seed(), stddev),)
+            res.append((self.evaluate(mutations, env, trials), mutations))
+        sorted_results = sorted([x for batch in MPI.COMM_WORLD.allgather(res) for x in batch],
+                                reverse=True)
         self.parents = [x[1] for x in sorted_results][:truncation]
         return sorted_results
 
-    def _evaluate(self, env, trials):
-        rewards = []
-        for _ in range(trials):
-            done = False
-            total_rew = 0.0
-            state = self.model.start_state(1)
-            obs = env.reset()
-            while not done:
-                out = self.model.step([obs], state)
-                state = out['states']
-                obs, rew, done, _ = env.step(out['actions'][0])
-                total_rew += rew
-            rewards.append(total_rew)
-        return sum(rewards) / len(rewards)
+    def evaluate(self, mutations, env, trials):
+        """
+        Evaluate a genome on an environment.
+
+        Args:
+          mutations: a list of (seed, stddev) tuples.
+          env: the environment to run.
+          trials: the number of episodes to run.
+
+        Returns:
+          The mean reward over all the trials.
+        """
+        with self._noise_adder.seed(mutations):
+            rewards = []
+            for _ in range(trials):
+                done = False
+                total_rew = 0.0
+                state = self.model.start_state(1)
+                obs = env.reset()
+                while not done:
+                    out = self.model.step([obs], state)
+                    state = out['states']
+                    obs, rew, done, _ = env.step(out['actions'][0])
+                    total_rew += rew
+                rewards.append(total_rew)
+            return sum(rewards) / len(rewards)
 
 def _synchronize_variables(sess, variables):
     if MPI.COMM_WORLD.Get_rank() == 0:

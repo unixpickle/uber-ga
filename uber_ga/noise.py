@@ -3,6 +3,7 @@ Deterministic mutation noise generation.
 """
 
 from collections import OrderedDict
+import random
 
 import numpy as np
 import tensorflow as tf
@@ -74,9 +75,9 @@ class NoiseAdder:
     TensorFlow variables.
     """
     def __init__(self, sess, variables, noise):
+        self.noise = noise
         self._sess = sess
         self._variables = variables
-        self._noise = noise
         self._placeholders = [tf.placeholder(v.dtype, shape=v.get_shape()) for v in variables]
         self._assigns = [tf.assign(v, ph) for v, ph in zip(variables, self._placeholders)]
         self._mutations = None
@@ -93,7 +94,7 @@ class NoiseAdder:
 
     def __enter__(self):
         size = int(np.sum(np.prod([x.value for x in v.get_shape()]) for v in self._variables))
-        noise = self._noise.cumulative_block(size, self._mutations)
+        noise = self.noise.cumulative_block(size, self._mutations)
         self._old_vals = self._sess.run(self._variables)
         new_vals = []
         for old_val in self._old_vals:
@@ -109,8 +110,8 @@ class NoiseAdder:
     def _set_values(self, values):
         self._sess.run(self._assigns, feed_dict=dict(zip(self._placeholders, values)))
 
-def noise_seeds(num_seeds):
+def noise_seed():
     """
-    Generate random seeds for NoiseSource.block().
+    Generate a random seed for NoiseSource.block().
     """
-    return [int(x) for x in np.random.randint(0, high=2**32, size=num_seeds)]
+    return random.randint(0, 2**32 - 1)

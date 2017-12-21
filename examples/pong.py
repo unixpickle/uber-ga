@@ -26,8 +26,7 @@ def main():
             sess.run(tf.global_variables_initializer())
             learn_sess = LearningSession(sess, model)
             while True:
-                offspring = learn_sess.make_offspring()
-                pop = learn_sess.generation(offspring, env)
+                pop = learn_sess.generation(env)
                 rewards = [x[0] for x in pop]
                 if MPI.COMM_WORLD.Get_rank() == 0: # pylint: disable=E1101
                     print('mean=%f best=%s' % (sum(rewards)/len(rewards), str(rewards[:10])))
