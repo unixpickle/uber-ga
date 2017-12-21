@@ -3,6 +3,7 @@ Tests for the random noise APIs.
 """
 
 from functools import partial
+import pickle
 
 import numpy as np
 import tensorflow as tf
@@ -37,6 +38,15 @@ def test_noise_cumulative():
     assert actual.shape == (15,)
     assert np.allclose(actual, actual1)
     assert np.allclose(actual, expected)
+
+def test_noise_pickle():
+    """
+    Test pickling a NoiseSource.
+    """
+    source = NoiseSource(seed=123, size=123123, max_cache=1337)
+    source1 = pickle.loads(pickle.dumps(source))
+    assert np.allclose(source.block(15, 2), source1.block(15, 2))
+    assert np.allclose(source.block(1000, 13), source1.block(1000, 13))
 
 def test_noise_adder():
     """

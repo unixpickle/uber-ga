@@ -14,6 +14,8 @@ class NoiseSource:
     """
     def __init__(self, seed=1337, size=(1 << 26), max_cache=(1 << 29)):
         state = np.random.RandomState(seed=seed)
+        self.seed = seed
+        self.size = size
         self.noise = state.normal(size=size).astype('float32')
         self._cache = OrderedDict()
         self._max_cache = max_cache
@@ -59,6 +61,12 @@ class NoiseSource:
 
     def _cache_size(self):
         return sum(x.shape[0] for x in self._cache.values())
+
+    def __getstate__(self):
+        return {'seed': self.seed, 'size': self.size, 'max_cache': self._max_cache}
+
+    def __setstate__(self, state):
+        self.__init__(seed=state['seed'], size=state['size'], max_cache=state['max_cache'])
 
 class NoiseAdder:
     """
