@@ -20,6 +20,15 @@ def simple_mlp(sess, env, stochastic=False):
                stochastic,
                (32, 32))
 
+def nature_cnn(sess, env, stochastic=False):
+    """
+    Create a CNN policy for a game environment.
+    """
+    return CNN(sess,
+               gym_space_distribution(env.action_space),
+               gym_space_vectorizer(env.observation_space),
+               stochastic)
+
 class FeedforwardPolicy(Model):
     """
     An evolvable feedforward policy.
@@ -110,4 +119,42 @@ class MLP(FeedforwardPolicy):
             layer_in = tf.layers.dense(layer_in, size,
                                        kernel_initializer=tf.truncated_normal_initializer())
             layer_in = self.activation(tf.contrib.layers.layer_norm(layer_in))
-        return tf.layers.dense(layer_in, out_size)
+        return tf.layers.dense(layer_in, out_size, kernel_initializer=tf.zeros_initializer())
+
+class CNN(FeedforwardPolicy):
+    """
+    A CNN model resembling the DQN model.
+
+    The model is normalized such that the weights can all
+    start off with a stddev of 1.
+    """
+    #pylint: disable=R0913
+    def __init__(self, session, action_dist, obs_vectorizer, stochastic,
+                 activation=tf.nn.relu):
+        """
+        Create an MLP policy.
+
+        Args:
+          session: the TF session.
+          action_dist: the action distribution.
+          obs_vectorizer: the observation vectorizer.
+          stochastic: if True, sample actions randomly.
+          activation: hidden layer activation function.
+        """
+        self.activation = activation
+        super(CNN, self).__init__(session, action_dist, obs_vectorizer, stochastic)
+
+    def base(self, out_size):
+        conv_kwargs = {
+            'activation': lambda x: self.activation(tf.contrib.layers.layer_norm(x)),
+            'kernel_initializer': tf.truncated_normal_initializer()
+        }
+        with tf.variable_scope('layer_1'):
+            cnn_1 = tf.layers.conv2d(self.obs_ph, 32, 8, 4, **conv_kwargs)
+        with tf.variable_scope('layer_2'):
+            cnn_2 = tf.layers.conv2d(cnn_1, 64, 4, 2, **conv_kwargs)
+        with tf.variable_scope('layer_3'):
+            cnn_3 = tf.layers.conv2d(cnn_2, 64, 3, 1, **conv_kwargs)
+        flat_size = np.prod(cnn_3.get_shape()[1:])
+        flat_in = tf.reshape(cnn_3, (tf.shape(cnn_3)[0], int(flat_size)))
+        return tf.layers.dense(flat_in, out_size, kernel_initializer=tf.zeros_initializer())
