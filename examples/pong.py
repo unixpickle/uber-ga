@@ -12,13 +12,13 @@ from anyrl.envs.wrappers import DownsampleEnv, GrayscaleEnv, FrameStackEnv
 import gym
 from mpi4py import MPI
 import tensorflow as tf
-from uber_ga import LearningSession, nature_cnn
+from uber_ga import LearningSession, nature_cnn, make_session
 
 def main():
     """
     Train on CartPole.
     """
-    with tf.Session() as sess:
+    with make_session() as sess:
         env = gym.make('Pong-v0')
         env = FrameStackEnv(DownsampleEnv(GrayscaleEnv(env), 2), 4)
         try:

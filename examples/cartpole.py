@@ -11,7 +11,7 @@ sample efficiency.
 
 import gym
 import tensorflow as tf
-from uber_ga import LearningSession, simple_mlp
+from uber_ga import LearningSession, simple_mlp, make_session
 
 POPULATION = 100
 
@@ -19,7 +19,7 @@ def main():
     """
     Train on CartPole.
     """
-    with tf.Session() as sess:
+    with make_session() as sess:
         env = gym.make('CartPole-v0')
         try:
             model = simple_mlp(sess, env)
