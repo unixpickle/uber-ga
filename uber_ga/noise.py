@@ -71,19 +71,21 @@ class NoiseAdder:
         self._noise = noise
         self._placeholders = [tf.placeholder(v.dtype, shape=v.get_shape()) for v in variables]
         self._assigns = [tf.assign(v, ph) for v, ph in zip(variables, self._placeholders)]
-        self._seeds = None
+        self._mutations = None
         self._old_vals = None
 
-    def seed(self, seeds):
+    def seed(self, mutations):
         """
-        Update the current seed and return self.
+        Set the mutations used by this context manager.
+
+        Returns self for convenience.
         """
-        self._seeds = seeds
+        self._mutations = mutations
         return self
 
     def __enter__(self):
         size = int(np.sum(np.prod([x.value for x in v.get_shape()]) for v in self._variables))
-        noise = self._noise.cumulative_block(size, self._seeds)
+        noise = self._noise.cumulative_block(size, self._mutations)
         self._old_vals = self._sess.run(self._variables)
         new_vals = []
         for old_val in self._old_vals:

@@ -5,8 +5,9 @@ Tests for the random noise APIs.
 from functools import partial
 
 import numpy as np
+import tensorflow as tf
 
-from .noise import NoiseSource
+from .noise import NoiseSource, NoiseAdder
 
 def test_noise_determinism():
     """
@@ -36,6 +37,32 @@ def test_noise_cumulative():
     assert actual.shape == (15,)
     assert np.allclose(actual, actual1)
     assert np.allclose(actual, expected)
+
+def test_noise_adder():
+    """
+    Test that NoiseAdder actually adds/removes noise.
+    """
+    with tf.Graph().as_default(): # pylint: disable=E1129
+        with tf.Session() as sess:
+            var1 = tf.Variable(np.array([[1, 2, 3], [4, 5, 6]], dtype='float32'))
+            var2 = tf.Variable(np.array([[1, 2], [-1, -2], [3, 3]], dtype='float32'))
+            sess.run(tf.global_variables_initializer())
+            old_val_1_1, old_val_2_1 = sess.run([var1, var2])
+
+            adder = NoiseAdder(sess, [var1, var2], NoiseSource())
+            with adder.seed([(1337, 0.5)]):
+                new_val_1_1, new_val_2_1 = sess.run([var1, var2])
+            with adder.seed([(1337, 0.1)]):
+                new_val_1_2, new_val_2_2 = sess.run([var1, var2])
+            with adder.seed([(1337, 0.5)]):
+                new_val_1_3, new_val_2_3 = sess.run([var1, var2])
+            old_val_1_2, old_val_2_2 = sess.run([var1, var2])
+            assert np.allclose(old_val_1_1, old_val_1_2)
+            assert np.allclose(old_val_2_1, old_val_2_2)
+            assert np.allclose(new_val_1_1, new_val_1_3)
+            assert np.allclose(new_val_2_1, new_val_2_3)
+            assert not np.allclose(new_val_1_1, new_val_1_2)
+            assert not np.allclose(new_val_2_1, new_val_2_2)
 
 def test_noise_block_perf(benchmark):
     """
