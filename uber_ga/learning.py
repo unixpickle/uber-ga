@@ -54,7 +54,7 @@ class LearningSession:
                                for genome, rew in batch], reverse=True)]
         self.parents = sub_results[:truncation]
 
-    def make_offspring(self, population=5000, stddev=0.005):
+    def make_offspring(self, population=5000, stddev=0.1):
         """
         Produce a set of offspring from self.parents.
         """
