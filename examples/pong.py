@@ -30,8 +30,22 @@ def main():
                 rewards = [x[0] for x in pop]
                 if MPI.COMM_WORLD.Get_rank() == 0: # pylint: disable=E1101
                     print('mean=%f best=%s' % (sum(rewards)/len(rewards), str(rewards[:10])))
+                    if rewards[0] == 21:
+                        save_video(learn_sess, pop[0][1])
         finally:
             env.close()
+
+def save_video(learn_sess, mutations):
+    """
+    Save a video recording of an agent playing a game.
+    """
+    env = gym.make('Pong-v0')
+    env = FrameStackEnv(DownsampleEnv(GrayscaleEnv(env), 2), 4)
+    env = gym.monitoring.VideoRecorder(env, path='video.mp4')
+    try:
+        learn_sess.evaluate(mutations, env, 1)
+    finally:
+        env.close()
 
 if __name__ == '__main__':
     main()
