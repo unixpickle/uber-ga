@@ -10,6 +10,8 @@ Ideally, you will run this on a fairly large MPI cluster.
 
 # pylint: disable=E1101
 
+import argparse
+
 from anyrl.envs.wrappers import DownsampleEnv, GrayscaleEnv, FrameStackEnv
 import gym
 from mpi4py import MPI
@@ -18,10 +20,11 @@ from uber_ga import LearningSession, nature_cnn, make_session
 
 def main():
     """
-    Train on Pong.
+    Train on an Atari game.
     """
+    args = parse_args()
     with make_session() as sess:
-        env = gym.make('Pong-v0')
+        env = gym.make(args.env)
         env = FrameStackEnv(DownsampleEnv(GrayscaleEnv(env), 2), 4)
         try:
             model = nature_cnn(sess, env)
@@ -38,16 +41,16 @@ def main():
                 if best_rew >= 20.5:
                     if MPI.COMM_WORLD.Get_rank() == 0:
                         print('Saving video and terminating...')
-                        save_video(learn_sess, pop[0][1])
+                        save_video(args, learn_sess, pop[0][1])
                     return
         finally:
             env.close()
 
-def save_video(learn_sess, mutations):
+def save_video(args, learn_sess, mutations):
     """
     Save a video recording of an agent playing a game.
     """
-    env = gym.make('Pong-v0')
+    env = gym.make(args.env)
     recorder = gym.monitoring.VideoRecorder(env, path='video.mp4')
     env = FrameStackEnv(DownsampleEnv(GrayscaleEnv(env), 2), 4)
     try:
@@ -55,6 +58,14 @@ def save_video(learn_sess, mutations):
     finally:
         recorder.close()
         env.close()
+
+def parse_args():
+    """
+    Parse the command-line arguments.
+    """
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('env', help='Gym environment ID to run', default='Pong-v0')
+    return parser.parse_args()
 
 if __name__ == '__main__':
     main()
