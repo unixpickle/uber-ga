@@ -42,7 +42,7 @@ def main():
                 if MPI.COMM_WORLD.Get_rank() == 0:
                     print('mean=%f best=%f top10=%s' %
                           (sum(rewards)/len(rewards), best_rew, str(rewards[:10])))
-                if best_rew >= 20.5:
+                if best_rew >= args.goal:
                     if MPI.COMM_WORLD.Get_rank() == 0:
                         print('Saving video and terminating...')
                         save_video(args, learn_sess, pop[0][1])
@@ -73,6 +73,7 @@ def parse_args():
     parser.add_argument('--truncation', help='top genomes to select', type=int, default=10)
     parser.add_argument('--population', help='genome population', type=int, default=5000)
     parser.add_argument('--stddev', help='mutation stddev', type=float, default=0.1)
+    parser.add_argument('--goal', help='reward to stop at', type=int, default=1000000)
     parser.add_argument('env', help='Gym environment ID to run', default='Pong-v0')
     return parser.parse_args()
 
