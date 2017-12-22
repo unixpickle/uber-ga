@@ -8,6 +8,8 @@ Run with:
 Ideally, you will run this on a fairly large MPI cluster.
 """
 
+# pylint: disable=E1101
+
 from anyrl.envs.wrappers import DownsampleEnv, GrayscaleEnv, FrameStackEnv
 import gym
 from mpi4py import MPI
@@ -16,7 +18,7 @@ from uber_ga import LearningSession, nature_cnn, make_session
 
 def main():
     """
-    Train on CartPole.
+    Train on Pong.
     """
     with make_session() as sess:
         env = gym.make('Pong-v0')
@@ -28,10 +30,16 @@ def main():
             while True:
                 pop = learn_sess.generation(env)
                 rewards = [x[0] for x in pop]
-                if MPI.COMM_WORLD.Get_rank() == 0: # pylint: disable=E1101
-                    print('mean=%f best=%s' % (sum(rewards)/len(rewards), str(rewards[:10])))
-                    if rewards[0] == 21:
+                best_rew = learn_sess.evaluate(pop[0][1], env, 1)
+                best_rew = MPI.COMM_WORLD.allreduce(best_rew) / MPI.COMM_WORLD.Get_size()
+                if MPI.COMM_WORLD.Get_rank() == 0:
+                    print('mean=%f best=%f top10=%s' %
+                          (sum(rewards)/len(rewards), best_rew, str(rewards[:10])))
+                if best_rew >= 20.5:
+                    if MPI.COMM_WORLD.Get_rank() == 0:
+                        print('Saving video and terminating...')
                         save_video(learn_sess, pop[0][1])
+                    return
         finally:
             env.close()
 
