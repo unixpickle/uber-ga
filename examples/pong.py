@@ -40,11 +40,12 @@ def save_video(learn_sess, mutations):
     Save a video recording of an agent playing a game.
     """
     env = gym.make('Pong-v0')
-    env = gym.monitoring.VideoRecorder(env, path='video.mp4')
+    recorder = gym.monitoring.VideoRecorder(env, path='video.mp4')
     env = FrameStackEnv(DownsampleEnv(GrayscaleEnv(env), 2), 4)
     try:
-        learn_sess.evaluate(mutations, env, 1)
+        learn_sess.evaluate(mutations, env, 1, step_fn=recorder.capture_frame)
     finally:
+        recorder.close()
         env.close()
 
 if __name__ == '__main__':

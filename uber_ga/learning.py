@@ -84,7 +84,7 @@ class LearningSession:
         self.parents = [x[1] for x in sorted_results][:truncation]
         return sorted_results
 
-    def evaluate(self, mutations, env, trials):
+    def evaluate(self, mutations, env, trials, step_fn=None):
         """
         Evaluate a genome on an environment.
 
@@ -92,6 +92,7 @@ class LearningSession:
           mutations: a list of (seed, stddev) tuples.
           env: the environment to run.
           trials: the number of episodes to run.
+          step_fn: a function to call before each step.
 
         Returns:
           The mean reward over all the trials.
@@ -104,6 +105,8 @@ class LearningSession:
                 state = self.model.start_state(1)
                 obs = env.reset()
                 while not done:
+                    if step_fn:
+                        step_fn()
                     out = self.model.step([obs], state)
                     state = out['states']
                     obs, rew, done, _ = env.step(out['actions'][0])
