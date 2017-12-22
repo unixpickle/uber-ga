@@ -11,6 +11,7 @@ Ideally, you will run this on a fairly large MPI cluster.
 # pylint: disable=E1101
 
 import argparse
+import random
 
 from anyrl.envs.wrappers import DownsampleEnv, GrayscaleEnv, FrameStackEnv
 import gym
@@ -24,7 +25,7 @@ def main():
     """
     args = parse_args()
     with make_session() as sess:
-        env = gym.make(args.env)
+        env = make_env(args)
         env = FrameStackEnv(DownsampleEnv(GrayscaleEnv(env), 2), 4)
         try:
             model = nature_cnn(sess, env, stochastic=args.stochastic)
@@ -54,7 +55,7 @@ def save_video(args, learn_sess, mutations):
     """
     Save a video recording of an agent playing a game.
     """
-    env = gym.make(args.env)
+    env = make_env(args)
     recorder = gym.monitoring.VideoRecorder(env, path='video.mp4')
     env = FrameStackEnv(DownsampleEnv(GrayscaleEnv(env), 2), 4)
     try:
@@ -74,8 +75,36 @@ def parse_args():
     parser.add_argument('--population', help='genome population', type=int, default=5000)
     parser.add_argument('--stddev', help='mutation stddev', type=float, default=0.1)
     parser.add_argument('--goal', help='reward to stop at', type=int, default=1000000)
-    parser.add_argument('env', help='Gym environment ID to run', default='Pong-v0')
+    parser.add_argument('game', help='game name', default='Pong')
     return parser.parse_args()
+
+def make_env(args):
+    """
+    Make an environment from the command-line arguments.
+    """
+    return NopSkipWrapper(gym.make(args.game + 'NoFrameskip-v4'))
+
+class NopSkipWrapper(gym.Wrapper):
+    """
+    A wrapper that takes a random number of no-ops and
+    performs a frameskip of 4.
+    """
+    def _reset(self, **kwargs):
+        obs = self.env.reset(**kwargs)
+        for _ in range(random.randint(1, 30)):
+            obs, _, done, _ = self.env.step(0)
+            if done:
+                obs = self.env.reset()
+        return obs
+
+    def _step(self, action):
+        total_rew = 0
+        for _ in range(4):
+            obs, rew, done, info = self.env.step(action)
+            total_rew += rew
+            if done:
+                break
+        return obs, total_rew, done, info
 
 if __name__ == '__main__':
     main()
