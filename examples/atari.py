@@ -27,11 +27,15 @@ def main():
         env = gym.make(args.env)
         env = FrameStackEnv(DownsampleEnv(GrayscaleEnv(env), 2), 4)
         try:
-            model = nature_cnn(sess, env)
+            model = nature_cnn(sess, env, stochastic=args.stochastic)
             sess.run(tf.global_variables_initializer())
             learn_sess = LearningSession(sess, model)
             while True:
-                pop = learn_sess.generation(env)
+                pop = learn_sess.generation(env,
+                                            trials=args.trials,
+                                            truncation=args.truncation,
+                                            population=args.population,
+                                            stddev=args.stddev)
                 rewards = [x[0] for x in pop]
                 best_rew = learn_sess.evaluate(pop[0][1], env, 1)
                 best_rew = MPI.COMM_WORLD.allreduce(best_rew) / MPI.COMM_WORLD.Get_size()
@@ -64,6 +68,11 @@ def parse_args():
     Parse the command-line arguments.
     """
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--stochastic', help='use a stochastic policy', action='store_true')
+    parser.add_argument('--trials', help='trials per genome', type=int, default=1)
+    parser.add_argument('--truncation', help='top genomes to select', type=int, default=10)
+    parser.add_argument('--population', help='genome population', type=int, default=5000)
+    parser.add_argument('--stddev', help='mutation stddev', type=float, default=0.1)
     parser.add_argument('env', help='Gym environment ID to run', default='Pong-v0')
     return parser.parse_args()
 
