@@ -145,10 +145,7 @@ class CNN(FeedforwardPolicy):
         super(CNN, self).__init__(session, action_dist, obs_vectorizer, stochastic)
 
     def base(self, out_size):
-        conv_kwargs = {
-            'activation': lambda x: self.activation(tf.contrib.layers.layer_norm(x)),
-            'kernel_initializer': tf.truncated_normal_initializer()
-        }
+        conv_kwargs = {'activation': self.activation}
         with tf.variable_scope('layer_1'):
             cnn_1 = tf.layers.conv2d(self.obs_ph, 32, 8, 4, **conv_kwargs)
         with tf.variable_scope('layer_2'):
