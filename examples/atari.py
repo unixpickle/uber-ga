@@ -75,6 +75,8 @@ def parse_args():
     parser.add_argument('--population', help='genome population', type=int, default=5000)
     parser.add_argument('--stddev', help='mutation stddev', type=float, default=0.005)
     parser.add_argument('--goal', help='reward to stop at', type=int, default=1000000)
+    parser.add_argument('--timestep-limit', help='max timesteps per episode',
+                        type=int, default=4000)
     parser.add_argument('game', help='game name', default='Pong')
     return parser.parse_args()
 
@@ -82,7 +84,9 @@ def make_env(args):
     """
     Make an environment from the command-line arguments.
     """
-    return NopSkipWrapper(gym.make(args.game + 'NoFrameskip-v4'))
+    raw = gym.make(args.game + 'NoFrameskip-v4')
+    raw._max_episode_steps = args.timestep_limit # pylint: disable=W0212
+    return NopSkipWrapper(raw)
 
 class NopSkipWrapper(gym.Wrapper):
     """
