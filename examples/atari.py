@@ -1,9 +1,9 @@
 """
-Use a genetic algorithm to learn Pong-v0 in OpenAI Gym.
+Use a genetic algorithm to learn Atari games.
 
 Run with:
 
-    $ mpiexec -f <your hosts file> python3 -u pong.py
+    $ mpiexec -f <your hosts file> python3 -u atari.py
 
 Ideally, you will run this on a fairly large MPI cluster.
 """
