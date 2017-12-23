@@ -130,7 +130,7 @@ class CNN(FeedforwardPolicy):
     """
     #pylint: disable=R0913
     def __init__(self, session, action_dist, obs_vectorizer, stochastic,
-                 activation=tf.nn.relu):
+                 activation=tf.nn.relu, input_scale=1/0xff):
         """
         Create an MLP policy.
 
@@ -142,12 +142,13 @@ class CNN(FeedforwardPolicy):
           activation: hidden layer activation function.
         """
         self.activation = activation
+        self.input_scale = input_scale
         super(CNN, self).__init__(session, action_dist, obs_vectorizer, stochastic)
 
     def base(self, out_size):
         conv_kwargs = {'activation': self.activation}
         with tf.variable_scope('layer_1'):
-            cnn_1 = tf.layers.conv2d(self.obs_ph, 32, 8, 4, **conv_kwargs)
+            cnn_1 = tf.layers.conv2d(self.obs_ph * self.input_scale, 32, 8, 4, **conv_kwargs)
         with tf.variable_scope('layer_2'):
             cnn_2 = tf.layers.conv2d(cnn_1, 64, 4, 2, **conv_kwargs)
         with tf.variable_scope('layer_3'):
