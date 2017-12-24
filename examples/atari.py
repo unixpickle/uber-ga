@@ -47,6 +47,7 @@ def main():
                     if MPI.COMM_WORLD.Get_rank() == 0:
                         print('Saving video and terminating...')
                         save_video(args, learn_sess, pop[0][1])
+                    MPI.COMM_WORLD.barrier()
                     return
         finally:
             env.close()
