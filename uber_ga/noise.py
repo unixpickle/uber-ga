@@ -13,7 +13,7 @@ class NoiseSource:
     """
     A deterministic noise generator.
     """
-    def __init__(self, seed=1337, size=(1 << 26), max_cache=(1 << 29)):
+    def __init__(self, seed=1337, size=(1 << 26), max_cache=(1 << 27)):
         state = np.random.RandomState(seed=seed)
         self.seed = seed
         self.size = size
