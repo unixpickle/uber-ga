@@ -3,6 +3,7 @@ Models suitable for mutation-based training.
 """
 
 from abc import abstractmethod
+import math
 
 from anyrl.models import Model
 from anyrl.spaces import gym_space_distribution, gym_space_vectorizer
@@ -146,7 +147,10 @@ class CNN(FeedforwardPolicy):
         super(CNN, self).__init__(session, action_dist, obs_vectorizer, stochastic)
 
     def base(self, out_size):
-        conv_kwargs = {'activation': self.activation}
+        conv_kwargs = {
+            'activation': self.activation,
+            'kernel_initializer': tf.orthogonal_initializer(gain=math.sqrt(2))
+        }
         with tf.variable_scope('layer_1'):
             cnn_1 = tf.layers.conv2d(self.obs_ph * self.input_scale, 32, 8, 4, **conv_kwargs)
         with tf.variable_scope('layer_2'):
