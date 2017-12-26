@@ -13,7 +13,7 @@ Ideally, you will run this on a fairly large MPI cluster.
 import argparse
 import random
 
-from anyrl.envs.wrappers import DownsampleEnv, GrayscaleEnv, FrameStackEnv
+from anyrl.envs.wrappers import GrayscaleEnv, FrameStackEnv, MaxEnv, ResizeImageEnv
 import gym
 from mpi4py import MPI
 import tensorflow as tf
@@ -26,7 +26,6 @@ def main():
     args = parse_args()
     with make_session() as sess:
         env = make_env(args)
-        env = FrameStackEnv(DownsampleEnv(GrayscaleEnv(env), 2), 4)
         try:
             model = nature_cnn(sess, env, stochastic=args.stochastic)
             sess.run(tf.global_variables_initializer())
@@ -46,19 +45,17 @@ def main():
                 if best_rew >= args.goal:
                     if MPI.COMM_WORLD.Get_rank() == 0:
                         print('Saving video and terminating...')
-                        save_video(args, learn_sess, pop[0][1])
+                        save_video(env, learn_sess, pop[0][1])
                     MPI.COMM_WORLD.barrier()
                     return
         finally:
             env.close()
 
-def save_video(args, learn_sess, mutations):
+def save_video(env, learn_sess, mutations):
     """
     Save a video recording of an agent playing a game.
     """
-    env = make_env(args)
-    recorder = gym.monitoring.VideoRecorder(env, path='video.mp4')
-    env = FrameStackEnv(DownsampleEnv(GrayscaleEnv(env), 2), 4)
+    recorder = gym.monitoring.VideoRecorder(env.unwrapped(), path='video.mp4')
     try:
         learn_sess.evaluate(mutations, env, 1, step_fn=recorder.capture_frame)
     finally:
@@ -87,7 +84,7 @@ def make_env(args):
     """
     raw = gym.make(args.game + 'NoFrameskip-v4')
     raw._max_episode_steps = 4 * args.timestep_limit # pylint: disable=W0212
-    return NopSkipWrapper(raw)
+    return FrameStackEnv(GrayscaleEnv(ResizeImageEnv(NopSkipWrapper(MaxEnv(raw)))), 4)
 
 class NopSkipWrapper(gym.Wrapper):
     """
