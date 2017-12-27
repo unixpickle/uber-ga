@@ -148,8 +148,8 @@ class CNN(FeedforwardPolicy):
 
     def base(self, out_size):
         conv_kwargs = {
-            'activation': self.activation,
-            'kernel_initializer': tf.orthogonal_initializer(gain=math.sqrt(2))
+            'activation': lambda x: tf.contrib.layers.layer_norm(self.activation(x), scale=False),
+            'kernel_initializer': tf.truncated_normal_initializer()
         }
         with tf.variable_scope('layer_1'):
             cnn_1 = tf.layers.conv2d(self.obs_ph * self.input_scale, 32, 8, 4, **conv_kwargs)

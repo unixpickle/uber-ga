@@ -71,7 +71,7 @@ def parse_args():
     parser.add_argument('--trials', help='trials per genome', type=int, default=1)
     parser.add_argument('--truncation', help='top genomes to select', type=int, default=10)
     parser.add_argument('--population', help='genome population', type=int, default=5000)
-    parser.add_argument('--stddev', help='mutation stddev', type=float, default=0.005)
+    parser.add_argument('--stddev', help='mutation stddev', type=float, default=0.1)
     parser.add_argument('--goal', help='reward to stop at', type=int, default=1000000)
     parser.add_argument('--timestep-limit', help='max timesteps per episode',
                         type=int, default=5000)
