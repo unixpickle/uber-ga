@@ -55,7 +55,7 @@ def save_video(env, learn_sess, mutations):
     """
     Save a video recording of an agent playing a game.
     """
-    recorder = gym.monitoring.VideoRecorder(env.unwrapped(), path='video.mp4')
+    recorder = gym.monitoring.VideoRecorder(env.unwrapped, path='video.mp4')
     try:
         learn_sess.evaluate(mutations, env, 1, step_fn=recorder.capture_frame)
     finally:
