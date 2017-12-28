@@ -27,14 +27,20 @@ def simple_mlp(sess, env, stochastic=False):
                stochastic,
                (32, 32))
 
-def nature_cnn(sess, env, stochastic=False):
+def nature_cnn(sess, env, stochastic=False, virtual_bn=False):
     """
     Create a CNN policy for a game environment.
     """
-    return CNN(sess,
-               gym_space_distribution(env.action_space),
-               gym_space_vectorizer(env.observation_space),
-               stochastic)
+    if not virtual_bn:
+        return CNN(sess,
+                   gym_space_distribution(env.action_space),
+                   gym_space_vectorizer(env.observation_space),
+                   stochastic)
+    return NormalizedCNN(sess,
+                         gym_space_distribution(env.action_space),
+                         gym_space_vectorizer(env.observation_space),
+                         stochastic,
+                         env)
 
 class FeedforwardPolicy(Model):
     """
@@ -187,7 +193,7 @@ class NormalizedCNN(FeedforwardPolicy):
     """
     # pylint: disable=R0913
     def __init__(self, session, action_dist, obs_vectorizer, stochastic,
-                 env, use_prob=0.1, virtual_batch_size=100,
+                 env, use_prob=0.01, virtual_batch_size=100,
                  activation=tf.nn.relu, input_scale=1/0xff):
         """
         Create a normalized CNN.

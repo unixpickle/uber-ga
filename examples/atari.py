@@ -27,7 +27,7 @@ def main():
     with make_session() as sess:
         env = make_env(args)
         try:
-            model = nature_cnn(sess, env, stochastic=args.stochastic)
+            model = nature_cnn(sess, env, stochastic=args.stochastic, virtual_bn=args.virtual_bn)
             sess.run(tf.global_variables_initializer())
             learn_sess = LearningSession(sess, model)
             while True:
@@ -68,6 +68,7 @@ def parse_args():
     """
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--stochastic', help='use a stochastic policy', action='store_true')
+    parser.add_argument('--virtual-bn', help='use virtual BatchNorm', action='store_true')
     parser.add_argument('--trials', help='trials per genome', type=int, default=1)
     parser.add_argument('--truncation', help='top genomes to select', type=int, default=10)
     parser.add_argument('--population', help='genome population', type=int, default=5000)
