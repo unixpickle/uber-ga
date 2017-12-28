@@ -2,6 +2,8 @@
 Models suitable for mutation-based training.
 """
 
+# pylint: disable=E1101
+
 from abc import abstractmethod
 import math
 import random
@@ -9,6 +11,7 @@ import random
 from anyrl.models import Model
 from anyrl.spaces import gym_space_distribution, gym_space_vectorizer
 
+from mpi4py import MPI
 import numpy as np
 import tensorflow as tf
 
@@ -206,8 +209,7 @@ class NormalizedCNN(FeedforwardPolicy):
         self.activation = activation
         self.input_scale = input_scale
         self._virtual_bn = VirtualBN()
-        self._virtual_batch = obs_vectorizer.to_vecs(
-            _virtual_batch(env, use_prob, virtual_batch_size))
+        self._virtual_batch = _virtual_batch(obs_vectorizer, env, use_prob, virtual_batch_size)
         self._reference_feed = {}
         super(NormalizedCNN, self).__init__(session, action_dist, obs_vectorizer, stochastic)
 
@@ -242,7 +244,9 @@ class NormalizedCNN(FeedforwardPolicy):
         res.update(self._reference_feed)
         return res
 
-def _virtual_batch(env, use_prob, size):
+def _virtual_batch(obs_vectorizer, env, use_prob, size):
+    if MPI.COMM_WORLD.Get_rank() != 0:
+        return MPI.COMM_WORLD.bcast(None)
     batch = []
     while len(batch) < size:
         done = False
@@ -251,4 +255,5 @@ def _virtual_batch(env, use_prob, size):
             if random.random() < use_prob:
                 batch.append(obs)
             obs, _, done, _ = env.step(env.action_space.sample())
+    MPI.COMM_WORLD.bcast(obs_vectorizer.to_vecs(batch))
     return batch
