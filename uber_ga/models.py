@@ -4,12 +4,15 @@ Models suitable for mutation-based training.
 
 from abc import abstractmethod
 import math
+import random
 
 from anyrl.models import Model
 from anyrl.spaces import gym_space_distribution, gym_space_vectorizer
 
 import numpy as np
 import tensorflow as tf
+
+from .virtual_bn import VirtualBN
 
 def simple_mlp(sess, env, stochastic=False):
     """
@@ -72,8 +75,7 @@ class FeedforwardPolicy(Model):
           'action_params': (optional) parameters that were
             fed into the action distribution.
         """
-        feed = {self.obs_ph: self.obs_vectorizer.to_vecs(observations)}
-        params = self.session.run(self.output, feed_dict=feed)
+        params = self.session.run(self.output, feed_dict=self._feed_dict(observations))
         if self.stochastic:
             actions = self.action_dist.sample(params)
         else:
@@ -86,6 +88,18 @@ class FeedforwardPolicy(Model):
         Produce a flattened action parameter Tensor.
         """
         pass
+
+    def variables_changed(self):
+        """
+        Inform the model that its variables changed.
+        """
+        pass
+
+    def _feed_dict(self, observations):
+        """
+        Generate a feed_dict for stepping.
+        """
+        return {self.obs_ph: self.obs_vectorizer.to_vecs(observations)}
 
 class MLP(FeedforwardPolicy):
     """
@@ -163,3 +177,78 @@ class CNN(FeedforwardPolicy):
             hidden = tf.layers.dense(flat_in, 512, **conv_kwargs)
         with tf.variable_scope('output'):
             return tf.layers.dense(hidden, out_size, kernel_initializer=tf.zeros_initializer())
+
+class NormalizedCNN(FeedforwardPolicy):
+    """
+    A CNN model with virtual batch normalization.
+    """
+    # pylint: disable=R0913
+    def __init__(self, session, action_dist, obs_vectorizer, stochastic,
+                 env, use_prob=0.1, virtual_batch_size=100,
+                 activation=tf.nn.relu, input_scale=1/0xff):
+        """
+        Create a normalized CNN.
+
+        Args:
+          session: the TF session.
+          action_dist: the action distribution.
+          obs_vectorizer: the observation vectorizer.
+          stochastic: if True, sample actions randomly.
+          env: the environment to use to gather a
+            reference batch.
+          use_prob: the probability of saving a frame from
+            the environment for the reference batch.
+          virtual_batch_size: the number of frames to save
+            for the reference batch.
+          activation: hidden layer activation function.
+          input_scale: scale for input features.
+        """
+        self.activation = activation
+        self.input_scale = input_scale
+        self._virtual_bn = VirtualBN()
+        self._virtual_batch = obs_vectorizer.to_vecs(
+            _virtual_batch(env, use_prob, virtual_batch_size))
+        self._reference_feed = {}
+        super(NormalizedCNN, self).__init__(session, action_dist, obs_vectorizer, stochastic)
+
+    def base(self, out_size):
+        conv_kwargs = {
+            'activation': lambda x: self.activation(self._virtual_bn.add_layer(x)),
+            'kernel_initializer': tf.orthogonal_initializer(gain=math.sqrt(2))
+        }
+        with tf.variable_scope('layer_1'):
+            cnn_1 = tf.layers.conv2d(self.obs_ph * self.input_scale, 32, 8, 4, **conv_kwargs)
+        with tf.variable_scope('layer_2'):
+            cnn_2 = tf.layers.conv2d(cnn_1, 64, 4, 2, **conv_kwargs)
+        with tf.variable_scope('layer_3'):
+            cnn_3 = tf.layers.conv2d(cnn_2, 64, 3, 1, **conv_kwargs)
+        flat_size = np.prod(cnn_3.get_shape()[1:])
+        flat_in = tf.reshape(cnn_3, (tf.shape(cnn_3)[0], int(flat_size)))
+        with tf.variable_scope('hidden'):
+            hidden = tf.layers.dense(flat_in, 512,
+                                     kernel_initializer=conv_kwargs['kernel_initializer'],
+                                     activation=self.activation)
+        with tf.variable_scope('output'):
+            return tf.layers.dense(hidden, out_size, kernel_initializer=tf.zeros_initializer())
+
+    def variables_changed(self):
+        feed = self._virtual_bn.batch_feed(self.session,
+                                           feed_dict={self.obs_ph: self._virtual_batch})
+        del feed[self.obs_ph]
+        self._reference_feed = feed
+
+    def _feed_dict(self, observations):
+        res = super(NormalizedCNN, self)._feed_dict(observations)
+        res.update(self._reference_feed)
+        return res
+
+def _virtual_batch(env, use_prob, size):
+    batch = []
+    while len(batch) < size:
+        done = False
+        obs = env.reset()
+        while not done and len(batch) < size:
+            if random.random() < use_prob:
+                batch.append(obs)
+            obs, _, done, _ = env.step(env.action_space.sample())
+    return batch

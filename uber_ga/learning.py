@@ -98,6 +98,7 @@ class LearningSession:
           The mean reward over all the trials.
         """
         with self._noise_adder.seed(mutations):
+            self.model.variables_changed()
             rewards = []
             for _ in range(trials):
                 done = False
