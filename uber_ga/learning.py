@@ -20,9 +20,8 @@ class LearningSession:
         self.session = session
         self.model = model
         self.variables = (variables or tf.trainable_variables())
-        self.noise = (noise or NoiseSource())
         self.parents = [()]
-        self._noise_adder = NoiseAdder(self.session, self.variables, self.noise)
+        self._noise_adder = NoiseAdder(self.session, self.variables, noise or NoiseSource())
         _synchronize_variables(self.session, self.variables)
 
     def export_state(self):
@@ -36,7 +35,7 @@ class LearningSession:
         return {
             'variables': self.session.run(self.variables),
             'parents': self.parents,
-            'noise': self.noise
+            'noise': self._noise_adder.noise
         }
 
     def import_state(self, state):
