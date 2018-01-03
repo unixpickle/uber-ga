@@ -65,6 +65,9 @@ class LearningSession:
 
         Updates self.population to a sorted list of
         (fitness, genome) tuples.
+
+        Returns the new population for backwards
+        compatibility.
         """
         selected = self._select(population, select_kwargs)
         res = []
@@ -76,6 +79,7 @@ class LearningSession:
             res.append((self.evaluate(mutations, env, trials), mutations))
         full_res = [x for batch in MPI.COMM_WORLD.allgather(res) for x in batch]
         self.population = sorted(full_res, reverse=True)
+        return self.population
 
     def evaluate(self, mutations, env, trials, step_fn=None):
         """
