@@ -73,7 +73,7 @@ class LearningSession:
         res = []
         for i in range(MPI.COMM_WORLD.Get_rank(), population+1, MPI.COMM_WORLD.Get_size()):
             if i == 0 and self.population is not None:
-                mutations = self.population[0]
+                mutations = self.population[0][1]
             else:
                 mutations = selected[i - 1] + ((noise_seed(), stddev),)
             res.append((self.evaluate(mutations, env, trials), mutations))
