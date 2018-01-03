@@ -62,7 +62,9 @@ class FeedforwardPolicy(Model):
         self.obs_vectorizer = obs_vectorizer
         self.stochastic = stochastic
         self.obs_ph = tf.placeholder(tf.float32, shape=(None,) + obs_vectorizer.out_shape)
+        old_vars = tf.trainable_variables()
         output = self.base(int(np.prod(action_dist.param_shape)))
+        self.variables = [v for v in tf.trainable_variables() if v not in old_vars]
         self.output = tf.reshape(output, (-1,) + action_dist.param_shape)
 
     @property
@@ -103,6 +105,28 @@ class FeedforwardPolicy(Model):
         Inform the model that its variables changed.
         """
         pass
+
+    def export_state(self):
+        """
+        Export the state of the model to a picklable
+        object.
+
+        This does not include the TensorFlow graph itself,
+        but it does include the initialization.
+        """
+        return {
+            'variables': self.session.run(self.variables),
+        }
+
+    def import_state(self, state):
+        """
+        Import a state exported by export_state().
+
+        This may add nodes (e.g. assigns) to the graph, so
+        it should not be called often.
+        """
+        for var, val in zip(self.variables, state['variables']):
+            self.session.run(tf.assign(var, val))
 
     def _feed_dict(self, observations):
         """
@@ -244,6 +268,14 @@ class NormalizedCNN(FeedforwardPolicy):
                                            feed_dict={self.obs_ph: self._virtual_batch})
         del feed[self.obs_ph]
         self._reference_feed = feed
+
+    def export_state(self):
+        res = super(NormalizedCNN, self).export_state()
+        res['virtual_batch'] = self._virtual_batch
+
+    def import_state(self, state):
+        super(NormalizedCNN, self).import_state(state)
+        self._virtual_batch = state['virtual_batch']
 
     def _feed_dict(self, observations):
         res = super(NormalizedCNN, self)._feed_dict(observations)

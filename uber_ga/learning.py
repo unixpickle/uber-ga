@@ -16,24 +16,20 @@ class LearningSession:
     """
     A GA optimization session.
     """
-    def __init__(self, session, model, variables=None, noise=None):
+    def __init__(self, session, model, noise=None):
         self.session = session
         self.model = model
-        self.variables = (variables or tf.trainable_variables())
         self.parents = [()]
-        self._noise_adder = NoiseAdder(self.session, self.variables, noise or NoiseSource())
-        _synchronize_variables(self.session, self.variables)
+        self._noise_adder = NoiseAdder(self.session, self.model.variables, noise or NoiseSource())
+        _synchronize_variables(self.session, self.model.variables)
 
     def export_state(self):
         """
         Export the state of the learning session to a
         picklable object.
-
-        This does not include the TensorFlow graph itself,
-        but it does include the initialization.
         """
         return {
-            'variables': self.session.run(self.variables),
+            'model': self.model.export_state(),
             'parents': self.parents,
             'noise': self._noise_adder.noise
         }
@@ -48,8 +44,7 @@ class LearningSession:
         This may add nodes (e.g. assigns) to the graph, so
         it should not be called often.
         """
-        for var, val in zip(self.variables, state['variables']):
-            self.session.run(tf.assign(var, val))
+        self.model.import_state(state['model'])
         self.parents = state['parents']
         self._noise_adder.noise = state['noise']
 
