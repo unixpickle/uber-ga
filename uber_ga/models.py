@@ -272,6 +272,7 @@ class NormalizedCNN(FeedforwardPolicy):
     def export_state(self):
         res = super(NormalizedCNN, self).export_state()
         res['virtual_batch'] = self._virtual_batch
+        return res
 
     def import_state(self, state):
         super(NormalizedCNN, self).import_state(state)
