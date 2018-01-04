@@ -9,13 +9,13 @@ from mpi4py import MPI
 import tensorflow as tf
 
 from .noise import NoiseSource, NoiseAdder, noise_seed
-from .selection import tournament_selection
+from .selection import truncation_selection
 
 class LearningSession:
     """
     A GA optimization session.
     """
-    def __init__(self, session, model, noise=None, selection=tournament_selection):
+    def __init__(self, session, model, noise=None, selection=truncation_selection):
         self.session = session
         self.model = model
         self.population = None
